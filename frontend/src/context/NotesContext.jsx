@@ -14,9 +14,13 @@ const initialState = {
   isDeleting: false,
   searchQuery: '',
   selectedTag: '',
+  authorIdFilter: null,
   error: null,
   sortBy: 'updatedAt', // 'title', 'createdAt', 'updatedAt'
-  sortOrder: 'desc' // 'asc', 'desc'
+  sortOrder: 'desc', // 'asc', 'desc'
+  page: 1,
+  pageSize: 20,
+  totalCount: 0
 };
 
 // Action types
@@ -32,7 +36,10 @@ const NOTES_ACTIONS = {
   SET_CURRENT_NOTE: 'SET_CURRENT_NOTE',
   SET_SEARCH_QUERY: 'SET_SEARCH_QUERY',
   SET_SELECTED_TAG: 'SET_SELECTED_TAG',
+  SET_AUTHOR_FILTER: 'SET_AUTHOR_FILTER',
   SET_SORT: 'SET_SORT',
+  SET_PAGE: 'SET_PAGE',
+  SET_PAGE_SIZE: 'SET_PAGE_SIZE',
   SET_ERROR: 'SET_ERROR',
   CLEAR_ERROR: 'CLEAR_ERROR',
   RESET_FILTERS: 'RESET_FILTERS'
@@ -50,7 +57,14 @@ const notesReducer = (state, action) => {
     case NOTES_ACTIONS.SET_DELETING:
       return { ...state, isDeleting: action.payload, error: action.payload ? null : state.error };
     case NOTES_ACTIONS.SET_NOTES:
-      return { ...state, notes: action.payload, filteredNotes: action.payload, isLoading: false, error: null };
+      return { 
+        ...state, 
+        notes: action.payload.notes, 
+        filteredNotes: action.payload.notes, 
+        totalCount: action.payload.totalCount ?? state.totalCount,
+        isLoading: false, 
+        error: null 
+      };
     case NOTES_ACTIONS.ADD_NOTE: {
       const newNotes = [...state.notes, action.payload];
       return { ...state, notes: newNotes, filteredNotes: newNotes, isCreating: false, error: null };
@@ -69,14 +83,20 @@ const notesReducer = (state, action) => {
       return { ...state, searchQuery: action.payload, filteredNotes: filterNotes(state.notes, action.payload, state.selectedTag, state.sortBy, state.sortOrder) };
     case NOTES_ACTIONS.SET_SELECTED_TAG:
       return { ...state, selectedTag: action.payload, filteredNotes: filterNotes(state.notes, state.searchQuery, action.payload, state.sortBy, state.sortOrder) };
+    case NOTES_ACTIONS.SET_AUTHOR_FILTER:
+      return { ...state, authorIdFilter: action.payload };
     case NOTES_ACTIONS.SET_SORT:
       return { ...state, sortBy: action.payload.sortBy, sortOrder: action.payload.sortOrder, filteredNotes: filterNotes(state.notes, state.searchQuery, state.selectedTag, action.payload.sortBy, action.payload.sortOrder) };
+    case NOTES_ACTIONS.SET_PAGE:
+      return { ...state, page: action.payload };
+    case NOTES_ACTIONS.SET_PAGE_SIZE:
+      return { ...state, pageSize: action.payload };
     case NOTES_ACTIONS.SET_ERROR:
       return { ...state, error: action.payload, isLoading: false, isCreating: false, isUpdating: false, isDeleting: false };
     case NOTES_ACTIONS.CLEAR_ERROR:
       return { ...state, error: null };
     case NOTES_ACTIONS.RESET_FILTERS:
-      return { ...state, searchQuery: '', selectedTag: '', filteredNotes: state.notes };
+      return { ...state, searchQuery: '', selectedTag: '', authorIdFilter: null, page: 1, filteredNotes: state.notes };
     default:
       return state;
   }
@@ -131,11 +151,15 @@ export const NotesProvider = ({ children }) => {
   const [state, dispatch] = useReducer(notesReducer, initialState);
   const { token } = useAuth();
 
+  // Auto reload notes whenever query-related state changes
   useEffect(() => {
-    if (token) loadNotes();
-    else dispatch({ type: NOTES_ACTIONS.SET_NOTES, payload: [] });
+    if (token) {
+      loadNotes();
+    } else {
+      dispatch({ type: NOTES_ACTIONS.SET_NOTES, payload: { notes: [], totalCount: 0 } });
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+  }, [token, state.searchQuery, state.authorIdFilter, state.sortBy, state.sortOrder, state.page, state.pageSize]);
 
   // Load all notes
   const loadNotes = async () => {
@@ -143,15 +167,20 @@ export const NotesProvider = ({ children }) => {
     dispatch({ type: NOTES_ACTIONS.SET_LOADING, payload: true });
     try {
       const params = {};
-      if (state.searchQuery) params.search = state.searchQuery;
+      if (state.searchQuery) params.q = state.searchQuery;
       if (state.selectedTag) params['tags__name'] = state.selectedTag;
+      if (state.authorIdFilter) params['user__id'] = state.authorIdFilter;
       if (state.sortBy) {
         const map = { title: 'title', createdAt: 'created_at', updatedAt: 'updated_at' };
         const field = map[state.sortBy] || 'updated_at';
         params.ordering = state.sortOrder === 'desc' ? `-${field}` : field;
       }
+      params.page = state.page;
+      params.page_size = state.pageSize;
       const data = await api.notes.list(params);
-      dispatch({ type: NOTES_ACTIONS.SET_NOTES, payload: data.results || data });
+      const notes = Array.isArray(data) ? data : (data.results || []);
+      const totalCount = typeof data?.count === 'number' ? data.count : notes.length;
+      dispatch({ type: NOTES_ACTIONS.SET_NOTES, payload: { notes, totalCount } });
     } catch (error) {
       const msg = 'Failed to load notes';
       dispatch({ type: NOTES_ACTIONS.SET_ERROR, payload: msg });
@@ -234,8 +263,10 @@ export const NotesProvider = ({ children }) => {
   const searchNotes = async (query) => {
     if (!token) return { success: false, error: 'Not authenticated' };
     try {
-      const data = await api.notes.list({ search: query });
-      dispatch({ type: NOTES_ACTIONS.SET_NOTES, payload: data.results || data });
+      const data = await api.notes.list({ q: query, page: 1, page_size: state.pageSize });
+      const notes = Array.isArray(data) ? data : (data.results || []);
+      const totalCount = typeof data?.count === 'number' ? data.count : notes.length;
+      dispatch({ type: NOTES_ACTIONS.SET_NOTES, payload: { notes, totalCount } });
       return { success: true, data };
     } catch (error) {
       return { success: false, error: 'Search failed' };
@@ -244,7 +275,10 @@ export const NotesProvider = ({ children }) => {
 
   const setSearchQuery = (query) => dispatch({ type: NOTES_ACTIONS.SET_SEARCH_QUERY, payload: query });
   const setSelectedTag = (tag) => dispatch({ type: NOTES_ACTIONS.SET_SELECTED_TAG, payload: tag });
+  const setAuthorFilter = (authorId) => dispatch({ type: NOTES_ACTIONS.SET_AUTHOR_FILTER, payload: authorId });
   const setSort = (sortBy, sortOrder) => dispatch({ type: NOTES_ACTIONS.SET_SORT, payload: { sortBy, sortOrder } });
+  const setPage = (page) => dispatch({ type: NOTES_ACTIONS.SET_PAGE, payload: page });
+  const setPageSize = (pageSize) => dispatch({ type: NOTES_ACTIONS.SET_PAGE_SIZE, payload: pageSize });
   const clearError = () => dispatch({ type: NOTES_ACTIONS.CLEAR_ERROR });
   const resetFilters = () => dispatch({ type: NOTES_ACTIONS.RESET_FILTERS });
 
@@ -263,7 +297,10 @@ export const NotesProvider = ({ children }) => {
     searchNotes,
     setSearchQuery,
     setSelectedTag,
+    setAuthorFilter,
     setSort,
+    setPage,
+    setPageSize,
     clearError,
     resetFilters,
     getAllTags

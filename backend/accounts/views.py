@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.throttling import ScopedRateThrottle
 
 from .serializers import RegisterSerializer, EmailOrUsernameTokenObtainPairSerializer
 
@@ -10,11 +11,15 @@ from .serializers import RegisterSerializer, EmailOrUsernameTokenObtainPairSeria
 class RegisterView(generics.CreateAPIView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = RegisterSerializer
+    throttle_classes = (ScopedRateThrottle,)
+    throttle_scope = 'auth'
 
 
 class LoginView(TokenObtainPairView):
     permission_classes = (permissions.AllowAny,)
     serializer_class = EmailOrUsernameTokenObtainPairSerializer
+    throttle_classes = (ScopedRateThrottle,)
+    throttle_scope = 'auth'
 
     def post(self, request, *args, **kwargs):
         response = super().post(request, *args, **kwargs)

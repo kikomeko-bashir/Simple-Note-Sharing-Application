@@ -6,6 +6,7 @@ import LazyNoteCard from './LazyNoteCard.jsx';
 import { NotesListSkeleton } from '../common/LoadingSkeleton.jsx';
 import { useDebounce } from '../../hooks/useDebounce.js';
 import { useAuth } from '../../context/AuthContext.jsx';
+import { useNotes } from '../../context/NotesContext.jsx';
 
 const NotesList = ({ 
   notes, 
@@ -23,6 +24,7 @@ const NotesList = ({
   searchInputRef
 }) => {
   const { user } = useAuth();
+  const { setAuthorFilter } = useNotes();
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQuery);
   const [isSearching, setIsSearching] = useState(false);
   const debouncedSearchQuery = useDebounce(localSearchQuery, 300);
@@ -56,6 +58,15 @@ const NotesList = ({
 
   // Show only notes created by current user
   const [showMine, setShowMine] = useState(false);
+  useEffect(() => {
+    // Apply server-side author filter when toggling Mine
+    if (showMine && user?.id) {
+      setAuthorFilter(user.id);
+    } else {
+      setAuthorFilter(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showMine, user?.id]);
 
   if (isLoading) {
     return <NotesListSkeleton count={6} />;
@@ -84,7 +95,7 @@ const NotesList = ({
       </div>
 
       {/* Search and Sort */}
-      <div className="flex flex-col lg:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row gap-4 sticky top-16 z-30 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur supports-[backdrop-filter]:bg-gray-50/60 dark:supports-[backdrop-filter]:bg-gray-900/60 py-3">
         {/* Search */}
         <div className="flex-1">
           <div className="relative">

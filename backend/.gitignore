@@ -20,12 +20,12 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+plan_backend.txt
 
-#node dependencies
-frontend/node_modules/
+
 
 # Virtual Environment
-backend/venv/
+venv/
 
 env/
 ENV/
