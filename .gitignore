@@ -20,6 +20,8 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+plan/plan_backend.txt
+plan/intergration_plan.txt
 
 #node dependencies
 frontend/node_modules/
