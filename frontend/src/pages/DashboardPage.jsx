@@ -125,7 +125,7 @@ const DashboardContent = () => {
             <ResponsiveNav>
               <div className="flex items-center space-x-2 text-sm text-gray-700 dark:text-gray-300">
                 <User size={16} />
-                <span>{user?.name || user?.email}</span>
+                <span>{user?.name || user?.username}</span>
               </div>
               
               <ThemeToggle />

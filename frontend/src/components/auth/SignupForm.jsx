@@ -96,10 +96,10 @@ const SignupForm = ({ onSwitchToLogin }) => {
           />
 
           <Input
-            label="Username (optional)"
+            label="Username "
             type="text"
             name="username"
-            placeholder="Pick a username (optional)"
+            placeholder="Pick a username"
             value={formData.username}
             onChange={handleInputChange}
             error={formErrors.username}

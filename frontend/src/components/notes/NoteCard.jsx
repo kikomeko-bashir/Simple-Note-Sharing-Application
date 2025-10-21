@@ -78,25 +78,7 @@ const NoteCard = ({ note, onEdit, onDelete, onView, isDeleting, canEdit = false 
         </p>
       </div>
 
-      {/* Tags */}
-      {note.tags && note.tags.length > 0 && (
-        <div className="mb-4">
-          <div className="flex items-center space-x-1 mb-2">
-            <Tag size={12} className="text-gray-400" />
-            <span className="text-xs text-gray-500 dark:text-gray-400">Tags:</span>
-          </div>
-          <div className="flex flex-wrap gap-1">
-            {note.tags.map((tag, index) => (
-              <span
-                key={index}
-                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      
 
       {/* Footer */}
       <div className="mt-auto flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
@@ -113,13 +95,7 @@ const NoteCard = ({ note, onEdit, onDelete, onView, isDeleting, canEdit = false 
           )}
         </div>
         
-        <div className="text-xs">
-          {note.content.length > 150 && (
-            <span className="text-primary-600 dark:text-primary-400">
-              {Math.ceil(note.content.length / 1000)} min read
-            </span>
-          )}
-        </div>
+        
       </div>
     </div>
   );
